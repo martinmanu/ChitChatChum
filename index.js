@@ -2,7 +2,11 @@ import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilde
 import axios from "axios";
 import dotenv from "dotenv";
 import fs from "fs";
+import express from "express";
 dotenv.config();
+
+const app = express();
+const PORT = process.env.PORT || 3000;
 
 let config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
 
@@ -63,8 +67,8 @@ client.on('interactionCreate', async interaction => {
       if (subcommand === 'character') {
         const characterName = interaction.options.getString('name');
         if (config.characters[characterName]) {
-          await changeCharacter(characterName);
           await interaction.reply(`Character changed to ${config.characters[characterName].name}!`);
+          changeCharacter(characterName).catch(console.error);
         } else {
           await interaction.reply(`Character not found. Available: ${Object.keys(config.characters).join(', ')}`);
         }
@@ -92,12 +96,12 @@ client.on('interactionCreate', async interaction => {
     if (interaction.customId.startsWith('char_')) {
       const characterKey = interaction.customId.replace('char_', '');
       if (config.characters[characterKey]) {
-        await changeCharacter(characterKey);
         await interaction.update({
           content: `✅ Character changed to **${config.characters[characterKey].name}**!`,
           embeds: [],
           components: []
         });
+        changeCharacter(characterKey).catch(console.error);
       }
     }
   }
@@ -172,6 +176,14 @@ client.on("messageCreate", async (msg) => {
 
   const reply = await generateReply(msg.content);
   await msg.reply(reply);
+});
+
+app.get('/', (req, res) => {
+  res.json({ status: 'ok', bot: client.user?.tag, uptime: process.uptime() });
+});
+
+app.listen(PORT, () => {
+  console.log(`Health server running on port ${PORT}`);
 });
 
 client.login(process.env.DISCORD_TOKEN);
