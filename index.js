@@ -57,6 +57,19 @@ async function generateReply(message) {
 
 client.once("clientReady", () => {
   console.log(`✅ Logged in as ${client.user.tag}`);
+  
+  // Check if bot's username matches any character
+  const botUsername = client.user.username;
+  const matchedChar = Object.entries(config.characters).find(([key, char]) => char.name === botUsername);
+  
+  if (matchedChar) {
+    const [charKey] = matchedChar;
+    if (config.settings.currentCharacter !== charKey) {
+      config.settings.currentCharacter = charKey;
+      fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
+      console.log(`🎭 Character synced to ${botUsername}`);
+    }
+  }
 });
 
 client.on('interactionCreate', async interaction => {
@@ -110,6 +123,7 @@ client.on('interactionCreate', async interaction => {
 async function changeCharacter(characterKey) {
   config.settings.currentCharacter = characterKey;
   fs.writeFileSync('./config.json', JSON.stringify(config, null, 2));
+  config = JSON.parse(fs.readFileSync('./config.json', 'utf8'));
   
   // Change bot's avatar and username if possible
   const character = config.characters[characterKey];
@@ -143,7 +157,6 @@ async function showCharacterSelector(interaction) {
   const characters = Object.entries(config.characters);
   const rows = [];
   
-  // Create button rows (max 5 buttons per row)
   for (let i = 0; i < characters.length; i += 5) {
     const row = new ActionRowBuilder();
     const chunk = characters.slice(i, i + 5);
@@ -169,7 +182,6 @@ async function showCharacterSelector(interaction) {
 client.on("messageCreate", async (msg) => {
   if (msg.author.bot) return;
 
-  // Check if should respond
   if (config.settings.respondOnlyWhenPinged && !msg.mentions.has(client.user)) {
     return;
   }
@@ -185,5 +197,12 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Health server running on port ${PORT}`);
 });
+
+// Self-ping every 10 minutes to prevent Render from spinning down
+setInterval(() => {
+  axios.get('https://discord-llama-bot.onrender.com/')
+    .then(() => console.log('✅ Self-ping successful'))
+    .catch(() => console.log('⚠️ Self-ping failed'));
+}, 10 * 60 * 1000);
 
 client.login(process.env.DISCORD_TOKEN);
